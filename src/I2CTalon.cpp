@@ -427,7 +427,7 @@ String I2CTalon::selfDiagnostic(uint8_t diagnosticLevel, time_t time)
 
 	// // return "{}"; //Return null if reach end	
 	// // return output + ",\"Pos\":[" + String(port) + "]}}"; //Append position and return
-	return ""; //DEBUG!
+	return "{}"; //DEBUG!
 }
 
 int I2CTalon::restart()

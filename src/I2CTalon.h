@@ -125,7 +125,7 @@ namespace pinsSense
  * @class AuxTalon
  * @brief Library for the Auxiliar Talon interfacing
  */
-class I2CTalon: public Sensor, public Talon
+class I2CTalon: public Talon
 {
   constexpr static  int DEAFULT_PORT = 3; ///<Use port 3 by default
   constexpr static  int DEFAULT_VERSION = 0x21; ///<Use hardware version v2.1 by default
