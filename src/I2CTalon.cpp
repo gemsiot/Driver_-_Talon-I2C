@@ -616,7 +616,8 @@ String I2CTalon::getMetadata()
 
 	String metadata = "{\"Talon-I2C\":{";
 	if(error == 0) metadata = metadata + "\"SN\":\"" + uuid + "\","; //Append UUID only if read correctly, skip otherwise 
-	metadata = metadata + "\"Mk\":\"v" + String(version >> 4, HEX) + "." + String(version & 0x0F, HEX) + "\","; //Report version as modded BCD
+	metadata = metadata + "\"Hardware\":\"v" + String(version >> 4, HEX) + "." + String(version & 0x0F, HEX) + "\","; //Report version as modded BCD
+	metadata = metadata + "\"Firmware\":\"v" + FIRMWARE_VERSION + "\","; //Report firmware version as modded BCD
 	metadata = metadata + "\"Pos\":[" + String(talonPort) + "]"; //Concatonate position 
 	metadata = metadata + "}}"; //CLOSE  
 	return metadata; 
