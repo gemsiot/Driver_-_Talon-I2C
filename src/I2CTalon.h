@@ -182,7 +182,8 @@ class I2CTalon: public Talon
   // const uint32_t COUNTER_INCREMENT_ERROR = 0xFFD0; //FIX! (Low 2 bits are which port)
   // const uint32_t COUNTER_CLEAR_ERROR = 0xFFE0; //FIX!
   const uint32_t EEPROM_I2C_ERROR = 0xFFF0; //FIX! (Low 3 bits are returned error)
-  const uint32_t PORT_RANGE_ERROR = 0xF000; //FIX! 
+  const uint32_t SENSOR_PORT_RANGE_ERROR = 0x90010100; 
+  const uint32_t SENSOR_POWER_FAIL = 0x20010000; //(low 2 bits are which port)
   // const float MAX_DISAGREE = 0.1; //If bus is different from expected by more than 10%, throw error
 
   
@@ -220,20 +221,20 @@ class I2CTalon: public Talon
     // int reportErrors(uint32_t *errors, size_t length);
     String getErrors();
     String getMetadata();
-    uint8_t totalErrors();
+    // uint8_t totalErrors();
     bool ovfErrors();
     // uint8_t getPort();
-    void setTalonPort(uint8_t port);
+    // void setTalonPort(uint8_t port);
     // bool isTalon() {
     //   return true;
     // };
     int enableData(uint8_t port, bool state);
     int enablePower(uint8_t port, bool state);
-    int disableDataAll();
-    int disablePowerAll();
-    uint8_t getTalonPort() {
-      return talonPort + 1;
-    }
+    // int disableDataAll();
+    // int disablePowerAll();
+    // uint8_t getTalonPort() {
+    //   return talonPort + 1;
+    // }
     bool isPresent();
     uint8_t getNumPorts() {
       return numPorts;
@@ -260,12 +261,12 @@ class I2CTalon: public Talon
     // static time_t readTime = 0;
     bool initDone = false; //Used to keep track if the initaliztion has run - used by hasReset() 
     
-
-    uint32_t errors[MAX_NUM_ERRORS] = {0};
-    uint8_t numErrors = 0; //Used to track the index of errors array
-    bool errorOverwrite = false; //Used to track if errors have been overwritten in time since last report
-    bool timeBaseGood = false; //Used to keep track of the valitity of the current timebase
-    uint8_t talonPort = 0; //Used to keep track of which port the Talon is connected to on Kestrel
+    bool faults[4] = {false}; //Used to store if any of the ports have had a power fault
+    // uint32_t errors[MAX_NUM_ERRORS] = {0};
+    // uint8_t numErrors = 0; //Used to track the index of errors array
+    // bool errorOverwrite = false; //Used to track if errors have been overwritten in time since last report
+    // bool timeBaseGood = false; //Used to keep track of the valitity of the current timebase
+    // uint8_t talonPort = 255; //Used to keep track of which port the Talon is connected to on Kestrel
     uint32_t portErrorCode = 0; //Used to easily OR with error codes to add the Talon port
     uint8_t version = 0; //FIX! This should be read from EEPROM in future 
 };
