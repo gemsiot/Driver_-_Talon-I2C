@@ -182,8 +182,11 @@ class I2CTalon: public Talon
   // const uint32_t COUNTER_INCREMENT_ERROR = 0xFFD0; //FIX! (Low 2 bits are which port)
   // const uint32_t COUNTER_CLEAR_ERROR = 0xFFE0; //FIX!
   const uint32_t EEPROM_I2C_ERROR = 0xFFF0; //FIX! (Low 3 bits are returned error)
+  const uint32_t ADC_INIT_FAIL = 0xFFE0; //FIX!
   const uint32_t SENSOR_PORT_RANGE_ERROR = 0x90010100; 
   const uint32_t SENSOR_POWER_FAIL = 0x20010000; //(low 2 bits are which port)
+  const uint32_t I2C_OB_ISO_FAIL = 0x0F00; //FIX! 
+  const uint32_t I2C_PORT_FAIL = 0x0FE0; //FIX! 
   // const float MAX_DISAGREE = 0.1; //If bus is different from expected by more than 10%, throw error
 
   
@@ -246,7 +249,7 @@ class I2CTalon: public Talon
     PCAL9535A ioAlpha; //ADR = 0x22
     MCP3421 adcSense;
     PCA9536 ioSense;
-
+    uint8_t expectedI2CVals[7] = {0x00, 0x22, 0x30, 0x41, 0x50, 0x58, 0x6B};
     
     const float voltageDiv = 2; ///<Program voltage divider
     const float currentDiv = 0.243902439; ///<82mOhm, 50V/V Amp
@@ -256,12 +259,14 @@ class I2CTalon: public Talon
 
     bool hasReset(); 
 
+    bool testOvercurrent();
+
 
 
     // static time_t readTime = 0;
     bool initDone = false; //Used to keep track if the initaliztion has run - used by hasReset() 
     
-    bool faults[4] = {false}; //Used to store if any of the ports have had a power fault
+    bool faults[4] = {false, false, false, false}; //Used to store if any of the ports have had a power fault
     // uint32_t errors[MAX_NUM_ERRORS] = {0};
     // uint8_t numErrors = 0; //Used to track the index of errors array
     // bool errorOverwrite = false; //Used to track if errors have been overwritten in time since last report

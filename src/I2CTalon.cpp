@@ -26,6 +26,7 @@ I2CTalon::I2CTalon(uint8_t talonPort_, uint8_t hardwareVersion) : ioAlpha(0x22),
 
 String I2CTalon::begin(time_t time, bool &criticalFault, bool &fault) 
 {
+	Serial.println("IO EXP BEGIN"); //DEBUG!
 	//Only use isEnabled() if using particle
 	// #if defined(ARDUINO) && ARDUINO >= 100 
 		// Wire.begin();
@@ -65,6 +66,7 @@ String I2CTalon::begin(time_t time, bool &criticalFault, bool &fault)
 	digitalWrite(KestrelPins::PortBPins[talonPort], HIGH); //Connect to internal bus
 	ioAlpha.digitalWrite(pinsAlpha::SENSE_EN, LOW); //Turn off sensing
 	disablePowerAll(); //Turn off all power  
+	disableDataAll(); //Turn off all data
 	digitalWrite(KestrelPins::PortBPins[talonPort], HIGH); //Connect to internal bus
 	for(int i = pinsAlpha::FAULT1; i <= pinsAlpha::FAULT4; i++) { //Set fault lines as outputs
 		ioAlpha.pinMode(i, OUTPUT); 
@@ -72,23 +74,35 @@ String I2CTalon::begin(time_t time, bool &criticalFault, bool &fault)
 	}
 
 	for(int i = 1; i <= numPorts; i++) { //Enable power
+		faults[i - 1] = false; //Reset fault state
 		enablePower(i, true); //Turn on power for each port
+		if(testOvercurrent()) { //Check if excess current 
+			enablePower(i, false); //Turn port back off
+			faults[i - 1] = true; //Store which ports have faulted 
+			Serial.print("Port Fault: "); //DEBUG!
+			Serial.println(i);
+		}
 	}
 	digitalWrite(KestrelPins::PortBPins[talonPort], HIGH); //Connect to internal bus
 	ioAlpha.digitalWrite(pinsAlpha::SENSE_EN, HIGH); //Turn sensing back on
 
 	for(int i = 1; i <= numPorts; i++) { //Toggle power to all ports to reset faults
-		enablePower(i, true);
-		delayMicroseconds(10);
-		enablePower(i, false);
-		delayMicroseconds(10);
-		enablePower(i, true);
+		if(!faults[i - 1]) { //Only toggle back on if no fault
+			enablePower(i, true);
+			delayMicroseconds(10);
+			enablePower(i, false);
+			delayMicroseconds(10);
+			enablePower(i, true);
+		}
+		
 	}
 
+	digitalWrite(KestrelPins::PortBPins[talonPort], HIGH); //Connect to internal bus
 	for(int i = pinsAlpha::FAULT1; i <= pinsAlpha::FAULT4; i++) { //Release fault lines
 		ioAlpha.pinMode(i, INPUT_PULLUP); 
 		// ioAlpha.digitalWrite(i, LOW);
 	}
+	ioAlpha.clearInterrupt(PCAL9535A::IntAge::BOTH); //Clear all interrupts on Alpha
 	// delay(100); //Let output settle //DEBUG! 
 	// digitalWrite(KestrelPins::PortBPins[talonPort], HIGH); //Connect to internal bus
 	// ioAlpha.digitalWrite(pinsAlpha::SENSE_EN, HIGH);
@@ -103,6 +117,7 @@ String I2CTalon::begin(time_t time, bool &criticalFault, bool &fault)
 	
 	
 	///////////////////// RUN DIAGNOSTICS /////////////
+	// digitalWrite(21, LOW); //DEBUG!!!! TURN OFF I2C OB
 	String diagnosticResults = selfDiagnostic(2); //Run level two diagnostic //DEBUG!
 	// String diagnosticResults = "{}"; //DEBUG!
 	Serial.print("Init Diagnostic: "); //DEBUG!
@@ -232,6 +247,48 @@ String I2CTalon::selfDiagnostic(uint8_t diagnosticLevel, time_t time)
 		//TBD
 		// Serial.println(millis()); //DEBUG!
 		output = output + "\"lvl-3\":{"; //OPEN JSON BLOB
+		/////// TEST I2C WITH LOOPBACK ////////////
+		output = output + "\"I2C_PORT_FAIL\":["; 
+		disableDataAll(); //Turn off all data 
+		digitalWrite(KestrelPins::PortBPins[talonPort], LOW); //Connect to external I2C
+		Wire.beginTransmission(0x22);
+		int error = Wire.endTransmission(); //Get error from write to empty bus
+		if(error == 0) throwError(I2C_OB_ISO_FAIL | talonPortErrorCode); //We should not be able to connect to IO exp in this state, if we can throw error 
+		digitalWrite(KestrelPins::PortBPins[talonPort], HIGH); //Connect to internal I2C
+		ioAlpha.digitalWrite(pinsAlpha::LOOPBACK_EN, HIGH); //Connect loopback 
+		for(int i = 0; i <= numPorts; i++) { //Iterate over each port
+			int totalErrors = 0; //Track how many of the test calls fail
+			if(i > 0) {
+				enablePower(i, true); //Turn on power to a given power after testing the base bus
+				enableData(i, true); //Turn on data to a given port after testing the base bus
+			}
+			digitalWrite(KestrelPins::PortBPins[talonPort], LOW); //Connect to external I2C (w/loopback enabled, so it is a combined bus now)
+			for(int adr = 0; adr < sizeof(expectedI2CVals); adr++) { //Check for addresses present 
+				Wire.beginTransmission(expectedI2CVals[adr]); //Check for each expected address
+				// Wire.write(0x00);
+				int error = Wire.endTransmission();
+				if(error == 2) { //If bad bus error detected 
+					// Serial.print("I2C Error Detected: "); //DEBUG!
+					// Serial.println(error);
+					totalErrors++; //If a failure occours, increment error count
+				}
+				// delay(1); //DEBUG!
+			}
+			Serial.print("Total Errors: "); //DEBUG!
+			Serial.println(totalErrors);
+			if(totalErrors > 0) { //If any bus failures were detected 
+				throwError(I2C_PORT_FAIL | talonPortErrorCode | i); //Throw error for the port under test
+				output = output + String(i) + ",";
+			}
+			if(i > 0) enableData(i, false); //Disable bus again
+		}
+		if(output.substring(output.length() - 1).equals(",")) {
+			output = output.substring(0, output.length() - 1); //Trim trailing ',' if present
+		}
+		output = output + "]"; //Close I2C port array
+		digitalWrite(KestrelPins::PortBPins[talonPort], HIGH); //Connect to internal I2C
+		ioAlpha.digitalWrite(pinsAlpha::LOOPBACK_EN, LOW); //Disable loopback 
+		digitalWrite(KestrelPins::PortBPins[talonPort], LOW); //Return to default external connecton
 		///////// TEST INPUT DRIVES //////////////
 		// const int numPulses = 5; //Number of pulses to use for testing
 		// for(int i = 0; i < 3; i++) {
@@ -379,6 +436,57 @@ String I2CTalon::selfDiagnostic(uint8_t diagnosticLevel, time_t time)
 		// output = output.substring(0,output.length() - 1); //Trim off closing brace
 		output = output + "\"lvl-4\":{"; //OPEN JSON BLOB
 
+		// ioSense.begin(); //Initalize voltage sensor IO expander
+		///////////// SENSE VOLTAGE AND CURRENT FOR PORTS ///////////
+		for(int p = 1; p <= numPorts; p++) {
+			enablePower(p, true); //Turn on power to all ports before measuring //DEBUG!
+		}
+		digitalWrite(KestrelPins::PortBPins[talonPort], HIGH); //Connect to internal I2C
+		for(int i = pinsSense::MUX_SEL0; i <= pinsSense::MUX_EN; i++) { //Set all pins to output
+			ioSense.pinMode(i, OUTPUT); 
+		}
+		ioAlpha.digitalWrite(pinsAlpha::SENSE_EN, HIGH); //Make sure 3v3 Sense is turned on
+		ioSense.digitalWrite(pinsSense::MUX_EN, LOW); //Turn MUX on 
+		int SenseError = adcSense.Begin(); //Initialize ADC 
+		if(SenseError == 0) { //Only proceed if ADC connects correctly
+			adcSense.SetResolution(18); //Set to max resolution (we paid for it right?) 
+
+			output = output + "\"PORT_V\":["; //Open group
+			ioSense.digitalWrite(pinsSense::MUX_SEL2, LOW); //Read voltages
+			for(int i = 0; i < numPorts; i++){ //Increment through all ports
+				ioSense.digitalWrite(pinsSense::MUX_SEL0, i & 0b01); //Set with lower bit
+				ioSense.digitalWrite(pinsSense::MUX_SEL1, (i & 0b10) >> 1); //Set with high bit
+				delay(1); //Wait for voltage to stabilize
+				output = output + String(adcSense.GetVoltage(true)*voltageDiv, 6); //Print high resultion voltage as volts
+				if(i < (numPorts - 1)) output = output + ","; //Append comma if not the last reading
+				// Serial.print("\tPort");
+				// Serial.print(i);
+				// Serial.print(":");
+				// Serial.print(adcSense.GetVoltage(true)*voltageDiv, 6); //Print high resolution voltage
+				// Serial.print(" V\n");  
+			}
+			output = output + "],"; //Close group
+			output = output + "\"PORT_I\":["; //Open group
+			ioSense.digitalWrite(pinsSense::MUX_SEL2, HIGH); //Read currents
+			for(int i = 0; i < numPorts; i++){ //Increment through 4 voltages
+				ioSense.digitalWrite(pinsSense::MUX_SEL0, i & 0b01); //Set with lower bit
+				ioSense.digitalWrite(pinsSense::MUX_SEL1, (i & 0b10) >> 1); //Set with high bit
+				delay(1); //Wait for voltage to stabilize
+				output = output + String(adcSense.GetVoltage(true)*currentDiv*1000, 6); //Print high resultion current as mA
+				if(i < (numPorts - 1)) output = output + ","; //Append comma if not the last reading
+				// Serial.print("\tPort");
+				// Serial.print(i);
+				// Serial.print(":");
+				// Serial.print(adcSense.GetVoltage(true)*currentDiv*1000, 6); //Print high resolution current measure in mA
+				// Serial.print(" mA\n");  
+			}
+			output = output + "]"; //Close group
+		}
+		else { //If unable to initialzie ADC
+			output = output + "\"PORT_V\":[null],\"PORT_I\":[null]";
+			throwError(ADC_INIT_FAIL | talonPortErrorCode); //Throw error for ADC failure
+		}
+		digitalWrite(KestrelPins::PortBPins[talonPort], LOW); //Return to default external connecton
 		// ioAlpha.digitalWrite(pinsAlpha::EN1, HIGH); //Make sure all ports are enabled before testing 
 		// ioAlpha.digitalWrite(pinsAlpha::EN2, HIGH); 
 		// ioAlpha.digitalWrite(pinsAlpha::EN3, HIGH); 
@@ -479,14 +587,20 @@ String I2CTalon::selfDiagnostic(uint8_t diagnosticLevel, time_t time)
 		disableDataAll(); //Make sure all data ports are turned off to begin with
 		for(int port = 1; port <= numPorts; port++) { //CHECK EACH SENSOR PORT FOR ADDRESSES
 			output = output + "\"I2C_" + String(port) + "\":["; //Append identifer for
-			enablePower(port, true); //Turn on power to given port //DEBUG! REPLACE!
-			enableData(port, true); //Turn on data to given port
+			Serial.print("Enable States: "); //DEBUG! And following prints
+			Serial.print(enablePower(port, true)); //Turn on power to given port //DEBUG! REPLACE!
+			Serial.println(enableData(port, true)); //Turn on data to given port
 			// delay(10);
 			// digitalWrite(KestrelPins::PortBPins[talonPort], LOW); //Connect to external I2C
 			for(int adr = 0; adr < 128; adr++) { //Check for addresses present 
 				Wire.beginTransmission(adr);
 				// Wire.write(0x00);
-				if(Wire.endTransmission() == 0) {
+				int error = Wire.endTransmission();
+				if(adr == 0) { //DEBUG!
+					Serial.print("Zero Error: ");
+					Serial.println(error); 
+				}
+				if(error == 0) {
 					output = output + String(adr) + ",";
 				}
 				delay(1); //DEBUG!
@@ -502,7 +616,7 @@ String I2CTalon::selfDiagnostic(uint8_t diagnosticLevel, time_t time)
 		
 		
 		// // output = output + "}"; //CLOSE JSON BLOB, 
-		// ioAlpha.clearInterrupt(PCAL9535A::IntAge::BOTH); //Clear all interrupts on Alpha
+		ioAlpha.clearInterrupt(PCAL9535A::IntAge::BOTH); //Clear all interrupts on Alpha
 		// // ioBeta.clearInterrupt(PCAL9535A::IntAge::BOTH); //Clear all interrupts on Beta
 		// // return output + ",\"Pos\":[" + String(port) + "]}}";
 		// // return output;
@@ -821,32 +935,41 @@ String I2CTalon::getMetadata()
 int I2CTalon::enableData(uint8_t port, bool state)
 {
 	//FIX! Check for range and throw error
+	bool success = false; 
 	pinMode(KestrelPins::PortBPins[talonPort], OUTPUT); //DEBUG!
 	digitalWrite(KestrelPins::PortBPins[talonPort], HIGH); //Connect I2C to internal I2C
 	// pinMode(D6, OUTPUT); //DEBUG!
 	// digitalWrite(D6, HIGH); //Connect I2C to internal I2C
 	ioAlpha.pinMode(pinsAlpha::DATA_EN1 + port - 1, OUTPUT);
 	ioAlpha.digitalWrite(pinsAlpha::DATA_EN1 + port - 1, state);
+	if(ioAlpha.digitalRead(pinsAlpha::DATA_EN1 + port - 1) == state) success = true; //If readback matches, set is a success
+	else success = false; //Otherwise clear flag
 	digitalWrite(KestrelPins::PortBPins[talonPort], LOW); //Connect I2C to default external I2C
 	// digitalWrite(D6, LOW); //Connect I2C to default external I2C
-	return 0; //DEBUG!
+	return success; //DEBUG!
 }
 
 int I2CTalon::enablePower(uint8_t port, bool state)
 {
 	// ioAlpha.pinMode(pinsAlpha)
 	//FIX! Check for range and throw error
-	pinMode(KestrelPins::PortBPins[talonPort], OUTPUT); //DEBUG!
-	digitalWrite(KestrelPins::PortBPins[talonPort], HIGH); //Connect I2C to internal I2C //DEBUG!
-	// pinMode(D6, OUTPUT); //DEBUG!
-	// digitalWrite(D6, HIGH); //Connect I2C to internal I2C
-	// digitalWrite(6, LOW); //Connect I2C to internal I2C //DEBUG!
-	ioAlpha.pinMode(pinsAlpha::EN1 + port - 1, OUTPUT);
-	ioAlpha.digitalWrite(pinsAlpha::EN1 + port - 1, state);
-	// digitalWrite(6, HIGH); //Connect I2C to internal I2C //DEBUG!
-	digitalWrite(KestrelPins::PortBPins[talonPort], LOW); //Connect I2C to default external I2C 
-	// digitalWrite(D6, LOW); //Connect I2C to default external I2C
-	return 0; //DEBUG!
+	bool success = false; 
+	if(faults[port - 1] == false) { //Only mess with power if fault has not occoured 
+		pinMode(KestrelPins::PortBPins[talonPort], OUTPUT); //DEBUG!
+		digitalWrite(KestrelPins::PortBPins[talonPort], HIGH); //Connect I2C to internal I2C //DEBUG!
+		// pinMode(D6, OUTPUT); //DEBUG!
+		// digitalWrite(D6, HIGH); //Connect I2C to internal I2C
+		// digitalWrite(6, LOW); //Connect I2C to internal I2C //DEBUG!
+		ioAlpha.pinMode(pinsAlpha::EN1 + port - 1, OUTPUT);
+		ioAlpha.digitalWrite(pinsAlpha::EN1 + port - 1, state);
+		if(ioAlpha.digitalRead(pinsAlpha::EN1 + port - 1) == state) success = true; //If readback matches, set is a success
+		else success = false; //Otherwise clear flag
+		// digitalWrite(6, HIGH); //Connect I2C to internal I2C //DEBUG!
+		digitalWrite(KestrelPins::PortBPins[talonPort], LOW); //Connect I2C to default external I2C 
+		// digitalWrite(D6, LOW); //Connect I2C to default external I2C
+	}
+	
+	return success; //DEBUG!
 }
 
 bool I2CTalon::isPresent()
@@ -857,4 +980,35 @@ bool I2CTalon::isPresent()
 	if(error == 0) return true;
 	else return false;
 	// return false; //DEBUG!
+}
+
+bool I2CTalon::testOvercurrent()
+{
+	bool prevState = digitalRead(KestrelPins::PortBPins[talonPort]); //Check the current state of the OB enable line
+	digitalWrite(KestrelPins::PortBPins[talonPort], LOW); //Connect I2C to default external I2C 
+	digitalWrite(KestrelPins::I2C_OB_EN, true); //Turn on OB I2C bus
+	int ADR = 0x14;
+	Wire.beginTransmission(ADR);
+	Wire.write(0x1F); //Write refresh command
+	Wire.write(0x00); //Initilize a clear
+	uint8_t error = Wire.endTransmission();
+	delay(1);
+
+	Wire.beginTransmission(ADR);
+	Wire.write(0x0E); //Get sense 4 value
+	error = Wire.endTransmission(); //Store Error
+
+	unsigned long localTime = millis();
+	Wire.requestFrom(ADR, 2, true);
+	while(Wire.available() < 2 && (millis() - localTime) < 10); //Wait up to 10 ms 
+	uint8_t byteHigh = Wire.read();  //Read in high and low bytes (big endian)
+	uint8_t byteLow = Wire.read();
+
+	uint16_t result = ((byteHigh << 8) | byteLow); //concatonate result 
+	digitalWrite(KestrelPins::PortBPins[talonPort], prevState); //Return OB enable to previous state
+	digitalWrite(KestrelPins::I2C_OB_EN, false); //Turn on OB I2C bus back off
+	Serial.print("Overcurrent Test: "); //DEBUG!
+	Serial.println(result);
+	if(result > 3276 || error != 0) return true; //If current is greater than 500mA, or unable to read current, return true
+	else return false; //Otherwise return false 
 }
