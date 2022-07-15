@@ -985,6 +985,7 @@ bool I2CTalon::isPresent()
 bool I2CTalon::testOvercurrent()
 {
 	bool prevState = digitalRead(KestrelPins::PortBPins[talonPort]); //Check the current state of the OB enable line
+	bool prevI2C = digitalRead(KestrelPins::I2C_OB_EN);
 	digitalWrite(KestrelPins::PortBPins[talonPort], LOW); //Connect I2C to default external I2C 
 	digitalWrite(KestrelPins::I2C_OB_EN, true); //Turn on OB I2C bus
 	int ADR = 0x14;
@@ -1006,7 +1007,7 @@ bool I2CTalon::testOvercurrent()
 
 	uint16_t result = ((byteHigh << 8) | byteLow); //concatonate result 
 	digitalWrite(KestrelPins::PortBPins[talonPort], prevState); //Return OB enable to previous state
-	digitalWrite(KestrelPins::I2C_OB_EN, false); //Turn on OB I2C bus back off
+	digitalWrite(KestrelPins::I2C_OB_EN, prevI2C); //Turn on OB I2C bus back off
 	Serial.print("Overcurrent Test: "); //DEBUG!
 	Serial.println(result);
 	if(result > 3276 || error != 0) return true; //If current is greater than 500mA, or unable to read current, return true
