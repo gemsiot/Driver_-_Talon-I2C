@@ -185,6 +185,7 @@ class I2CTalon: public Talon
   const uint32_t ADC_INIT_FAIL = 0xFFE0; //FIX!
   const uint32_t SENSOR_PORT_RANGE_ERROR = 0x90010100; 
   const uint32_t SENSOR_POWER_FAIL = 0x20010000; //(low 2 bits are which port)
+  const uint32_t SENSOR_POWER_FAIL_PERSISTENT = 0x20010100; //(low 2 bits are which port)
   const uint32_t I2C_OB_ISO_FAIL = 0x0F00; //FIX! 
   const uint32_t I2C_PORT_FAIL = 0x0FE0; //FIX! 
   // const float MAX_DISAGREE = 0.1; //If bus is different from expected by more than 10%, throw error
@@ -218,6 +219,7 @@ class I2CTalon: public Talon
     // String errorTags[MAX_NUM_ERRORS]
     
     String getData(time_t time);
+    bool hasReset();
     int restart();
     String selfDiagnostic(uint8_t diagnosticLevel = 4, time_t time = 0); //Default to just level 4 diagnostic, default to time = 0
     // int sleepMode(uint8_t mode) //DEFINE!
@@ -257,7 +259,7 @@ class I2CTalon: public Talon
     void setPinDefaults();
 
 
-    bool hasReset(); 
+    // bool hasReset(); 
 
     bool testOvercurrent();
 

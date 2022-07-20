@@ -486,6 +486,7 @@ String I2CTalon::selfDiagnostic(uint8_t diagnosticLevel, time_t time)
 			output = output + "\"PORT_V\":[null],\"PORT_I\":[null]";
 			throwError(ADC_INIT_FAIL | talonPortErrorCode); //Throw error for ADC failure
 		}
+		ioSense.digitalWrite(pinsSense::MUX_EN, HIGH); //Turn MUX back off 
 		digitalWrite(KestrelPins::PortBPins[talonPort], LOW); //Return to default external connecton
 		// ioAlpha.digitalWrite(pinsAlpha::EN1, HIGH); //Make sure all ports are enabled before testing 
 		// ioAlpha.digitalWrite(pinsAlpha::EN2, HIGH); 
@@ -588,7 +589,7 @@ String I2CTalon::selfDiagnostic(uint8_t diagnosticLevel, time_t time)
 		for(int port = 1; port <= numPorts; port++) { //CHECK EACH SENSOR PORT FOR ADDRESSES
 			output = output + "\"I2C_" + String(port) + "\":["; //Append identifer for
 			Serial.print("Enable States: "); //DEBUG! And following prints
-			Serial.print(enablePower(port, true)); //Turn on power to given port //DEBUG! REPLACE!
+			// Serial.print(enablePower(port, true)); //Turn on power to given port //DEBUG! REPLACE!
 			Serial.println(enableData(port, true)); //Turn on data to given port
 			// delay(10);
 			// digitalWrite(KestrelPins::PortBPins[talonPort], LOW); //Connect to external I2C
@@ -629,25 +630,82 @@ String I2CTalon::selfDiagnostic(uint8_t diagnosticLevel, time_t time)
 	// return "{}"; //DEBUG!
 }
 
+bool I2CTalon::hasReset()
+{
+	// int error = 0; //Used to store the error from I2C read
+	// uint16_t outputState = ioAlpha.readWord(0x06, error); //Read from configuration register 
+	// if(((outputState >> pinsAlpha::MUX_EN) & 0x01) == 0x00) return false; //If output is still 
+	Wire.beginTransmission(0x41); //Write to sense IO expander 
+	Wire.write(0x03); //Read from configuration reg
+	int error = Wire.endTransmission();
+	Wire.requestFrom(0x41, 1); //Read single byte back
+	uint8_t state = Wire.read();
+
+	if(((state >> pinsSense::MUX_EN) & 0x01) == 0 && error == 0) return false; //If MUX_EN is set as an output AND there is no I2C error, device has not reset  
+	else return true; //If the MUX_EN pin is no longer configured as an output, assume the Talon has reset
+}
+
 int I2CTalon::restart()
 {
-	// bool hasCriticalError = false;
-	// bool hasError = false;
-	// if(initDone == false) begin(0, hasCriticalError, hasError); //If for some reason the begin() function has not been run, call this now //FIX!
+	bool hasCriticalError = false;
+	bool hasError = false;
+	if(hasReset()) begin(0, hasCriticalError, hasError); //If Talon has been power cycled, run begin function again
 	// setPinDefaults(); //Reset IO expander pins to their default state
-	// for(int i = 0; i < 3; i++) {
-	// 	if (faults[i] == true) { 
-	// 		if(ioAlpha.digitalRead(pinsAlpha::FAULT1 + i) == LOW) { //If the FAULT is still asserted 
-	// 			ioAlpha.digitalWrite(pinsAlpha::EN1 + i, HIGH); //Turn port power ON
-	// 			ioAlpha.digitalWrite(pinsAlpha::EN1 + i, LOW); //Turn port off
-	// 			ioAlpha.digitalWrite(pinsAlpha::EN1 + i, HIGH); //Turn port back on finally
-	// 			delay(10); //Wait for trip
-	// 			if(ioAlpha.digitalRead(pinsAlpha::FAULT1 + i) == LOW) { //If FAULT is re-asserted after power cycle
-	// 				throwError(POWER_FAULT_PERSISTENT | i); //Throw persistent power fault error with given port appended 
-	// 			}
-	// 		}
-	// 	}
-	// }
+	digitalWrite(KestrelPins::PortBPins[talonPort], HIGH); //Connect to internal bus
+	bool hasFault = false;
+	for(int i = 0; i < numPorts; i++) {
+		if(ioAlpha.getInterrupt(pinsAlpha::FAULT1 + i)) {
+			throwError(SENSOR_POWER_FAIL | talonPortErrorCode | i); //Throw error because a power failure has occured  
+			hasFault = true; //Set flag if any return true
+		}
+	}
+	if(hasFault) { //If there are power faults, reset the system
+		ioAlpha.digitalWrite(pinsAlpha::SENSE_EN, LOW); //Turn off sensing
+		disablePowerAll(); //Turn off all power  
+		disableDataAll(); //Turn off all data
+		digitalWrite(KestrelPins::PortBPins[talonPort], HIGH); //Connect to internal bus
+		for(int i = pinsAlpha::FAULT1; i <= pinsAlpha::FAULT4; i++) { //Set fault lines as outputs
+			ioAlpha.pinMode(i, OUTPUT); 
+			ioAlpha.digitalWrite(i, LOW);
+		}
+
+		for(int i = 1; i <= numPorts; i++) { //Enable power
+			faults[i - 1] = false; //Reset fault state
+			enablePower(i, true); //Turn on power for each port
+			if(testOvercurrent()) { //Check if excess current 
+				enablePower(i, false); //Turn port back off
+				faults[i - 1] = true; //Store which ports have faulted 
+				Serial.print("Port Fault: "); //DEBUG!
+				Serial.println(i);
+			}
+		}
+		digitalWrite(KestrelPins::PortBPins[talonPort], HIGH); //Connect to internal bus
+		ioAlpha.digitalWrite(pinsAlpha::SENSE_EN, HIGH); //Turn sensing back on
+
+		for(int i = 1; i <= numPorts; i++) { //Toggle power to all ports to reset faults
+			if(!faults[i - 1]) { //Only toggle back on if no fault
+				enablePower(i, true);
+				delayMicroseconds(10);
+				enablePower(i, false);
+				delayMicroseconds(10);
+				enablePower(i, true);
+			}
+		}
+
+		digitalWrite(KestrelPins::PortBPins[talonPort], HIGH); //Connect to internal bus
+		for(int i = pinsAlpha::FAULT1; i <= pinsAlpha::FAULT4; i++) { //Release fault lines
+			ioAlpha.pinMode(i, INPUT_PULLUP); 
+			// ioAlpha.digitalWrite(i, LOW);
+		}
+		ioAlpha.clearInterrupt(PCAL9535A::IntAge::BOTH); //Clear all interrupts on Alpha
+		for(int i = 0; i < numPorts; i++) {
+			if(ioAlpha.digitalRead(pinsAlpha::FAULT1 + i)) {
+				throwError(SENSOR_POWER_FAIL_PERSISTENT | talonPortErrorCode | i); //Throw error because a power failure still present
+				hasFault = true; //Set flag if any return true
+			}
+		}
+	}
+	digitalWrite(KestrelPins::PortBPins[talonPort], LOW);
 	return 0; //FIX!
 }
 
@@ -750,7 +808,7 @@ void I2CTalon::setPinDefaults()
 	ioSense.pinMode(pinsSense::MUX_SEL1, OUTPUT);
 	ioSense.pinMode(pinsSense::MUX_SEL2, OUTPUT);
 
-	ioSense.digitalWrite(pinsSense::MUX_EN, LOW); //Disable sensing MUX by default
+	ioSense.digitalWrite(pinsSense::MUX_EN, HIGH); //Disable sensing MUX by default
 	ioSense.digitalWrite(pinsSense::MUX_SEL0, LOW);
 	ioSense.digitalWrite(pinsSense::MUX_SEL1, LOW);
 	ioSense.digitalWrite(pinsSense::MUX_SEL2, LOW);
@@ -842,14 +900,14 @@ void I2CTalon::setPinDefaults()
 	
 }
 
-bool I2CTalon::hasReset()
-{
-	// int error = 0; //Used to store the error from I2C read
-	// uint16_t outputState = ioAlpha.readWord(0x06, error); //Read from configuration register 
-	// if(((outputState >> pinsAlpha::MUX_EN) & 0x01) == 0x00) return false; //If output is still 
-	// else return true; //If the MUX_EN pin is no longer configured as an output, assume the Talon has reset
-	return false; //DEBUG!
-}
+// bool I2CTalon::hasReset()
+// {
+// 	// int error = 0; //Used to store the error from I2C read
+// 	// uint16_t outputState = ioAlpha.readWord(0x06, error); //Read from configuration register 
+// 	// if(((outputState >> pinsAlpha::MUX_EN) & 0x01) == 0x00) return false; //If output is still 
+// 	// else return true; //If the MUX_EN pin is no longer configured as an output, assume the Talon has reset
+// 	return false; //DEBUG!
+// }
 
 String I2CTalon::getMetadata()
 {
