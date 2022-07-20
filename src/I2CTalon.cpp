@@ -635,11 +635,13 @@ bool I2CTalon::hasReset()
 	// int error = 0; //Used to store the error from I2C read
 	// uint16_t outputState = ioAlpha.readWord(0x06, error); //Read from configuration register 
 	// if(((outputState >> pinsAlpha::MUX_EN) & 0x01) == 0x00) return false; //If output is still 
+	digitalWrite(KestrelPins::PortBPins[talonPort], HIGH); //Connect to internal bus
 	Wire.beginTransmission(0x41); //Write to sense IO expander 
 	Wire.write(0x03); //Read from configuration reg
 	int error = Wire.endTransmission();
 	Wire.requestFrom(0x41, 1); //Read single byte back
 	uint8_t state = Wire.read();
+	digitalWrite(KestrelPins::PortBPins[talonPort], LOW);
 
 	if(((state >> pinsSense::MUX_EN) & 0x01) == 0 && error == 0) return false; //If MUX_EN is set as an output AND there is no I2C error, device has not reset  
 	else return true; //If the MUX_EN pin is no longer configured as an output, assume the Talon has reset
