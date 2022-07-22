@@ -182,7 +182,7 @@ class I2CTalon: public Talon
   // const uint32_t COUNTER_INCREMENT_ERROR = 0xFFD0; //FIX! (Low 2 bits are which port)
   // const uint32_t COUNTER_CLEAR_ERROR = 0xFFE0; //FIX!
   const uint32_t EEPROM_I2C_ERROR = 0xFFF0; //FIX! (Low 3 bits are returned error)
-  const uint32_t ADC_INIT_FAIL = 0xFFE0; //FIX!
+  const uint32_t SENSE_ADC_INIT_FAIL = 0x10060000; 
   const uint32_t SENSOR_PORT_RANGE_ERROR = 0x90010100; 
   const uint32_t SENSOR_POWER_FAIL = 0x20010000; //(low 2 bits are which port)
   const uint32_t SENSOR_POWER_FAIL_PERSISTENT = 0x20010100; //(low 2 bits are which port)

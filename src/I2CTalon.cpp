@@ -484,7 +484,7 @@ String I2CTalon::selfDiagnostic(uint8_t diagnosticLevel, time_t time)
 		}
 		else { //If unable to initialzie ADC
 			output = output + "\"PORT_V\":[null],\"PORT_I\":[null]";
-			throwError(ADC_INIT_FAIL | talonPortErrorCode); //Throw error for ADC failure
+			throwError(SENSE_ADC_INIT_FAIL | talonPortErrorCode); //Throw error for ADC failure
 		}
 		ioSense.digitalWrite(pinsSense::MUX_EN, HIGH); //Turn MUX back off 
 		digitalWrite(KestrelPins::PortBPins[talonPort], LOW); //Return to default external connecton
@@ -913,6 +913,7 @@ void I2CTalon::setPinDefaults()
 
 String I2CTalon::getMetadata()
 {
+	digitalWrite(KestrelPins::PortBPins[talonPort], HIGH); //Connect to internal bus
 	Wire.beginTransmission(0x58); //Write to UUID range of EEPROM
 	Wire.write(0x98); //Point to start of UUID
 	int error = Wire.endTransmission();
@@ -932,9 +933,11 @@ String I2CTalon::getMetadata()
 			if(i < 7) uuid = uuid + "-"; //Print formatting chracter, don't print on last pass
 		}
 	}
+	digitalWrite(KestrelPins::PortBPins[talonPort], LOW); //Release to external bus
 
 	String metadata = "{\"Talon-I2C\":{";
 	if(error == 0) metadata = metadata + "\"SN\":\"" + uuid + "\","; //Append UUID only if read correctly, skip otherwise 
+	else metadata = metadata + "\"SN\":null,"; //Append null if error connecting 
 	metadata = metadata + "\"Hardware\":\"v" + String(version >> 4, HEX) + "." + String(version & 0x0F, HEX) + "\","; //Report version as modded BCD
 	metadata = metadata + "\"Firmware\":\"v" + FIRMWARE_VERSION + "\","; //Report firmware version as modded BCD
 	metadata = metadata + "\"Pos\":[" + getTalonPortString() + "]"; //Concatonate position 
