@@ -209,12 +209,12 @@ String I2CTalon::getErrors()
 	// return -1; //Return fault if unknown cause 
 }
 
-int I2CTalon::throwError(uint32_t error)
-{
-	errors[(numErrors++) % MAX_NUM_ERRORS] = error; //Write error to the specified location in the error array
-	if(numErrors > MAX_NUM_ERRORS) errorOverwrite = true; //Set flag if looping over previous errors 
-	return numErrors;
-}
+// int I2CTalon::throwError(uint32_t error)
+// {
+// 	errors[(numErrors++) % MAX_NUM_ERRORS] = error; //Write error to the specified location in the error array
+// 	if(numErrors > MAX_NUM_ERRORS) errorOverwrite = true; //Set flag if looping over previous errors 
+// 	return numErrors;
+// }
 
 String I2CTalon::selfDiagnostic(uint8_t diagnosticLevel, time_t time)
 {

@@ -255,7 +255,7 @@ class I2CTalon: public Talon
     
     const float voltageDiv = 2; ///<Program voltage divider
     const float currentDiv = 0.243902439; ///<82mOhm, 50V/V Amp
-    int throwError(uint32_t error);
+    // int throwError(uint32_t error);
     void setPinDefaults();
 
 
