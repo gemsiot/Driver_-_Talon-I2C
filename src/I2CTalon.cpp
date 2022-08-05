@@ -218,6 +218,7 @@ String I2CTalon::getErrors()
 
 String I2CTalon::selfDiagnostic(uint8_t diagnosticLevel, time_t time)
 {
+	if(getTalonPort() == 0) throwError(TALON_MISSING); //If Talon not found, report failure
 	String output = "{\"Talon-I2C\":{";
 	if(diagnosticLevel == 0) {
 		//TBD
