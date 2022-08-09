@@ -193,6 +193,7 @@ class I2CTalon: public Talon
   
 
   public:
+	constexpr static const char* CLASS_NAME = "I2C";
 
     /**
      * @brief Instantiate the Talon, defaults to using pre-specified port and hardware version
@@ -240,7 +241,7 @@ class I2CTalon: public Talon
     // uint8_t getTalonPort() {
     //   return talonPort + 1;
     // }
-    bool isPresent();
+    static bool isPresent();
     uint8_t getNumPorts() {
       return numPorts;
     }
