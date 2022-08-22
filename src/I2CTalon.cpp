@@ -83,23 +83,30 @@ String I2CTalon::begin(time_t time, bool &criticalFault, bool &fault)
 			Serial.println(i);
 		}
 	}
+	delay(500); //Delay to wait for high power draw of sensor to be over
 	digitalWrite(KestrelPins::PortBPins[talonPort], HIGH); //Connect to internal bus
 	ioAlpha.digitalWrite(pinsAlpha::SENSE_EN, HIGH); //Turn sensing back on
-
+	ioAlpha.safeMode(PCAL9535A::SAFEOFF); //DEBUG!
 	for(int i = 1; i <= numPorts; i++) { //Toggle power to all ports to reset faults
 		if(!faults[i - 1]) { //Only toggle back on if no fault
-			enablePower(i, true);
-			delayMicroseconds(10);
-			enablePower(i, false);
-			delayMicroseconds(10);
-			enablePower(i, true);
+			// enablePower(i, true);
+			// delayMicroseconds(10);
+			// enablePower(i, false);
+			// delayMicroseconds(10);
+			// enablePower(i, true);
+			ioAlpha.digitalWrite(i - 1, HIGH);
+			// delayMicroseconds(1);
+			ioAlpha.digitalWrite(i - 1, LOW);
+			// delayMicroseconds(1);
+			ioAlpha.digitalWrite(i - 1, HIGH);
 		}
 		
 	}
+	delay(10); //DEBUG!
 
 	digitalWrite(KestrelPins::PortBPins[talonPort], HIGH); //Connect to internal bus
 	for(int i = pinsAlpha::FAULT1; i <= pinsAlpha::FAULT4; i++) { //Release fault lines
-		ioAlpha.pinMode(i, INPUT_PULLUP); 
+		ioAlpha.pinMode(i, INPUT); 
 		// ioAlpha.digitalWrite(i, LOW);
 	}
 	ioAlpha.clearInterrupt(PCAL9535A::IntAge::BOTH); //Clear all interrupts on Alpha
@@ -260,7 +267,7 @@ String I2CTalon::selfDiagnostic(uint8_t diagnosticLevel, time_t time)
 		for(int i = 0; i <= numPorts; i++) { //Iterate over each port
 			int totalErrors = 0; //Track how many of the test calls fail
 			if(i > 0) {
-				enablePower(i, true); //Turn on power to a given power after testing the base bus
+				// enablePower(i, true); //Turn on power to a given power after testing the base bus
 				enableData(i, true); //Turn on data to a given port after testing the base bus
 			}
 			digitalWrite(KestrelPins::PortBPins[talonPort], LOW); //Connect to external I2C (w/loopback enabled, so it is a combined bus now)
@@ -439,9 +446,9 @@ String I2CTalon::selfDiagnostic(uint8_t diagnosticLevel, time_t time)
 
 		// ioSense.begin(); //Initalize voltage sensor IO expander
 		///////////// SENSE VOLTAGE AND CURRENT FOR PORTS ///////////
-		for(int p = 1; p <= numPorts; p++) {
-			enablePower(p, true); //Turn on power to all ports before measuring //DEBUG!
-		}
+		// for(int p = 1; p <= numPorts; p++) {
+		// 	enablePower(p, true); //Turn on power to all ports before measuring //DEBUG!
+		// }
 		digitalWrite(KestrelPins::PortBPins[talonPort], HIGH); //Connect to internal I2C
 		for(int i = pinsSense::MUX_SEL0; i <= pinsSense::MUX_EN; i++) { //Set all pins to output
 			ioSense.pinMode(i, OUTPUT); 
@@ -657,7 +664,7 @@ int I2CTalon::restart()
 	digitalWrite(KestrelPins::PortBPins[talonPort], HIGH); //Connect to internal bus
 	bool hasFault = false;
 	for(int i = 0; i < numPorts; i++) {
-		if(ioAlpha.getInterrupt(pinsAlpha::FAULT1 + i)) {
+		if(ioAlpha.getInterrupt(pinsAlpha::FAULT1 + i) || ioAlpha.digitalRead(pinsAlpha::FAULT1 + i)) {
 			throwError(SENSOR_POWER_FAIL | talonPortErrorCode | i); //Throw error because a power failure has occured  
 			hasFault = true; //Set flag if any return true
 		}
@@ -682,22 +689,28 @@ int I2CTalon::restart()
 				Serial.println(i);
 			}
 		}
+		delay(500); //Delay to wait for high power draw of sensor to be over
 		digitalWrite(KestrelPins::PortBPins[talonPort], HIGH); //Connect to internal bus
 		ioAlpha.digitalWrite(pinsAlpha::SENSE_EN, HIGH); //Turn sensing back on
-
+		ioAlpha.safeMode(PCAL9535A::SAFEOFF); //DEBUG!
 		for(int i = 1; i <= numPorts; i++) { //Toggle power to all ports to reset faults
 			if(!faults[i - 1]) { //Only toggle back on if no fault
-				enablePower(i, true);
-				delayMicroseconds(10);
-				enablePower(i, false);
-				delayMicroseconds(10);
-				enablePower(i, true);
+				// enablePower(i, true);
+				// delayMicroseconds(10);
+				// enablePower(i, false);
+				// delayMicroseconds(10);
+				// enablePower(i, true);
+				ioAlpha.digitalWrite(i - 1, HIGH);
+				// delayMicroseconds(1);
+				ioAlpha.digitalWrite(i - 1, LOW);
+				// delayMicroseconds(1);
+				ioAlpha.digitalWrite(i - 1, HIGH);
 			}
 		}
-
+		delay(10); //DEBUG!
 		digitalWrite(KestrelPins::PortBPins[talonPort], HIGH); //Connect to internal bus
 		for(int i = pinsAlpha::FAULT1; i <= pinsAlpha::FAULT4; i++) { //Release fault lines
-			ioAlpha.pinMode(i, INPUT_PULLUP); 
+			ioAlpha.pinMode(i, INPUT); 
 			// ioAlpha.digitalWrite(i, LOW);
 		}
 		ioAlpha.clearInterrupt(PCAL9535A::IntAge::BOTH); //Clear all interrupts on Alpha
