@@ -130,7 +130,7 @@ class I2CTalon: public Talon
   constexpr static  int DEAFULT_PORT = 3; ///<Use port 3 by default
   constexpr static  int DEFAULT_VERSION = 0x21; ///<Use hardware version v2.1 by default
   constexpr static  int MAX_NUM_ERRORS = 10; ///<Maximum number of errors to log before overwriting previous errors in buffer
-  const String FIRMWARE_VERSION = "1.1.0"; //FIX! Read from system??
+  const String FIRMWARE_VERSION = "1.2.0"; //FIX! Read from system??
   
   enum pinsAlpha 
   {
@@ -266,7 +266,7 @@ class I2CTalon: public Talon
 
 
     // static time_t readTime = 0;
-    bool initDone = false; //Used to keep track if the initaliztion has run - used by hasReset() 
+    // bool initDone = false; //Used to keep track if the initaliztion has run - used by hasReset() 
     
     bool faults[4] = {false, false, false, false}; //Used to store if any of the ports have had a power fault
     // uint32_t errors[MAX_NUM_ERRORS] = {0};

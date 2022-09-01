@@ -125,10 +125,10 @@ String I2CTalon::begin(time_t time, bool &criticalFault, bool &fault)
 	
 	///////////////////// RUN DIAGNOSTICS /////////////
 	// digitalWrite(21, LOW); //DEBUG!!!! TURN OFF I2C OB
-	String diagnosticResults = selfDiagnostic(2); //Run level two diagnostic //DEBUG!
+	// String diagnosticResults = selfDiagnostic(2); //Run level two diagnostic //DEBUG!
 	// String diagnosticResults = "{}"; //DEBUG!
-	Serial.print("Init Diagnostic: "); //DEBUG!
-	Serial.println(diagnosticResults); //DEBUG!
+	// Serial.print("Init Diagnostic: "); //DEBUG!
+	// Serial.println(diagnosticResults); //DEBUG!
 
 	////////// RESET COUNTERS //////////////////////////
 	// clearCount(time); //Clear counter and pass time info in
@@ -147,7 +147,8 @@ String I2CTalon::begin(time_t time, bool &criticalFault, bool &fault)
 	// if(criticalFault == true) return -1; //If a critical fault was detected, return with critical fault code
 	if(numErrors - startingErrors > 0 || fault == true) fault = true; //If a non-critical fault was detected, or additional errors thrown, set fault
 	// else return 0; //Only if no additional errors present, return operational state
-	return diagnosticResults; //Return diagnostic string
+	// return diagnosticResults; //Return diagnostic string
+	return "";
 
 }
 
@@ -659,7 +660,7 @@ int I2CTalon::restart()
 {
 	bool hasCriticalError = false;
 	bool hasError = false;
-	if(hasReset()) begin(0, hasCriticalError, hasError); //If Talon has been power cycled, run begin function again
+	if(hasReset() && initDone) begin(0, hasCriticalError, hasError); //If Talon has been power cycled, run begin function again
 	// setPinDefaults(); //Reset IO expander pins to their default state
 	digitalWrite(KestrelPins::PortBPins[talonPort], HIGH); //Connect to internal bus
 	bool hasFault = false;
