@@ -130,7 +130,7 @@ class I2CTalon: public Talon
   constexpr static  int DEAFULT_PORT = 3; ///<Use port 3 by default
   constexpr static  int DEFAULT_VERSION = 0x21; ///<Use hardware version v2.1 by default
   constexpr static  int MAX_NUM_ERRORS = 10; ///<Maximum number of errors to log before overwriting previous errors in buffer
-  const String FIRMWARE_VERSION = "1.2.0"; //FIX! Read from system??
+  const String FIRMWARE_VERSION = "1.3.0"; //FIX! Read from system??
   
   enum pinsAlpha 
   {
@@ -274,7 +274,7 @@ class I2CTalon: public Talon
     // bool errorOverwrite = false; //Used to track if errors have been overwritten in time since last report
     // bool timeBaseGood = false; //Used to keep track of the valitity of the current timebase
     // uint8_t talonPort = 255; //Used to keep track of which port the Talon is connected to on Kestrel
-    uint32_t portErrorCode = 0; //Used to easily OR with error codes to add the Talon port
+    // uint32_t portErrorCode = 0; //Used to easily OR with error codes to add the Talon port
     uint8_t version = 0; //FIX! This should be read from EEPROM in future 
 };
 

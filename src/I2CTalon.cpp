@@ -48,6 +48,8 @@ String I2CTalon::begin(time_t time, bool &criticalFault, bool &fault)
 
 	// for(int i = 0; i < 3; i++) {
 		if(ioError != 0) { 
+			Serial.print("IO Init Error: "); //DEBUG!
+			Serial.println(ioError);
 			throwError(IO_INIT_ERROR | ioError); //Throw error on first init error, not again 
 			criticalFault = true; //If any IO expander fails, this is a critical error  
 			// break;
@@ -286,7 +288,7 @@ String I2CTalon::selfDiagnostic(uint8_t diagnosticLevel, time_t time)
 			Serial.print("Total Errors: "); //DEBUG!
 			Serial.println(totalErrors);
 			if(totalErrors > 0) { //If any bus failures were detected 
-				throwError(I2C_PORT_FAIL | talonPortErrorCode | i); //Throw error for the port under test
+				throwError(I2C_PORT_FAIL | talonPortErrorCode | i + 1); //Throw error for the port under test
 				output = output + String(i) + ",";
 			}
 			if(i > 0) enableData(i, false); //Disable bus again
@@ -563,7 +565,7 @@ String I2CTalon::selfDiagnostic(uint8_t diagnosticLevel, time_t time)
 			// overflow[i] = ioBeta.getInterrupt(pinsBeta::OVF1 + i); //Read in overflow values
 			faults[i] = ioAlpha.getInterrupt(pinsAlpha::FAULT1 + i); //Read in fault values
 			if (faults[i] == true) {
-				throwError(SENSOR_POWER_FAIL | portErrorCode | i); //Throw power fault error with given port appended 
+				throwError(SENSOR_POWER_FAIL | talonPortErrorCode | i + 1); //Throw power fault error with given port appended 
 			}
 		}
 
@@ -666,7 +668,7 @@ int I2CTalon::restart()
 	bool hasFault = false;
 	for(int i = 0; i < numPorts; i++) {
 		if(ioAlpha.getInterrupt(pinsAlpha::FAULT1 + i) || ioAlpha.digitalRead(pinsAlpha::FAULT1 + i)) {
-			throwError(SENSOR_POWER_FAIL | talonPortErrorCode | i); //Throw error because a power failure has occured  
+			throwError(SENSOR_POWER_FAIL | talonPortErrorCode | i + 1); //Throw error because a power failure has occured  
 			hasFault = true; //Set flag if any return true
 		}
 	}
@@ -717,7 +719,7 @@ int I2CTalon::restart()
 		ioAlpha.clearInterrupt(PCAL9535A::IntAge::BOTH); //Clear all interrupts on Alpha
 		for(int i = 0; i < numPorts; i++) {
 			if(ioAlpha.digitalRead(pinsAlpha::FAULT1 + i)) {
-				throwError(SENSOR_POWER_FAIL_PERSISTENT | talonPortErrorCode | i); //Throw error because a power failure still present
+				throwError(SENSOR_POWER_FAIL_PERSISTENT | talonPortErrorCode | i + 1); //Throw error because a power failure still present
 				hasFault = true; //Set flag if any return true
 			}
 		}
