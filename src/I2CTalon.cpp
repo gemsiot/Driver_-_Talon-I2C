@@ -228,6 +228,7 @@ String I2CTalon::getErrors()
 
 String I2CTalon::selfDiagnostic(uint8_t diagnosticLevel, time_t time)
 {
+	unsigned long diagnosticStart = millis();
 	if(getTalonPort() == 0) throwError(TALON_MISSING); //If Talon not found, report failure
 	String output = "\"Talon-I2C\":{";
 	if(diagnosticLevel == 0) {
@@ -633,6 +634,7 @@ String I2CTalon::selfDiagnostic(uint8_t diagnosticLevel, time_t time)
 		// // return output + ",\"Pos\":[" + String(port) + "]}}";
 		// // return output;
 	}
+	if((millis() - diagnosticStart) > collectMax) throwError(EXCEED_COLLECT_TIME | 0x200 | talonPortErrorCode | sensorPortErrorCode); //Throw error for diagnostic taking too long
 	return output + "\"Pos\":[" + getTalonPortString() + "]}"; //Write position in logical form - Return compleated closed output
 	// else return ""; //Return empty string if reaches this point 
 
@@ -930,6 +932,7 @@ void I2CTalon::setPinDefaults()
 
 String I2CTalon::getMetadata()
 {
+	unsigned long metadataStart = millis();
 	digitalWrite(KestrelPins::PortBPins[talonPort], HIGH); //Connect to internal bus
 	Wire.beginTransmission(0x58); //Write to UUID range of EEPROM
 	Wire.write(0x98); //Point to start of UUID
@@ -959,8 +962,10 @@ String I2CTalon::getMetadata()
 	metadata = metadata + "\"Firmware\":\"v" + FIRMWARE_VERSION + "\","; //Report firmware version as modded BCD
 	metadata = metadata + "\"Pos\":[" + getTalonPortString() + "]"; //Concatonate position 
 	metadata = metadata + "}"; //CLOSE  
+	if((millis() - metadataStart) > collectMax) throwError(EXCEED_COLLECT_TIME | 0x300 | talonPortErrorCode | sensorPortErrorCode); //Throw error for metadata taking too long
 	return metadata; 
-	return ""; //DEBUG!
+	
+	// return ""; //DEBUG!
 }
 
 // uint8_t I2CTalon::totalErrors()
