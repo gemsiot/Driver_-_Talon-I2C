@@ -83,6 +83,7 @@ String I2CTalon::begin(time_t time, bool &criticalFault, bool &fault)
 			faults[i - 1] = true; //Store which ports have faulted 
 			Serial.print("Port Fault: "); //DEBUG!
 			Serial.println(i);
+			throwError(SENSOR_POWER_INIT_FAIL | talonPortErrorCode | i); //Throw concatonated error code
 		}
 	}
 	delay(500); //Delay to wait for high power draw of sensor to be over
@@ -1095,6 +1096,7 @@ bool I2CTalon::testOvercurrent()
 	digitalWrite(KestrelPins::I2C_OB_EN, prevI2C); //Turn on OB I2C bus back off
 	Serial.print("Overcurrent Test: "); //DEBUG!
 	Serial.println(result);
+	if(error != 0) throwError(CSA_READ_FAIL); //Throw error if error in reading from CSA
 	if(result > 3276 || error != 0) return true; //If current is greater than 500mA, or unable to read current, return true
 	else return false; //Otherwise return false 
 }
