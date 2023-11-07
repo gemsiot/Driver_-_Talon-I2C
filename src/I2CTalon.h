@@ -130,7 +130,7 @@ class I2CTalon: public Talon
   constexpr static  int DEAFULT_PORT = 3; ///<Use port 3 by default
   constexpr static  int DEFAULT_VERSION = 0x21; ///<Use hardware version v2.1 by default
   constexpr static  int MAX_NUM_ERRORS = 10; ///<Maximum number of errors to log before overwriting previous errors in buffer
-  const String FIRMWARE_VERSION = "1.3.2"; //FIX! Read from system??
+  const String FIRMWARE_VERSION = "1.4.0"; //FIX! Read from system??
   
   enum pinsAlpha 
   {
@@ -184,8 +184,8 @@ class I2CTalon: public Talon
   const uint32_t EEPROM_I2C_ERROR = 0xFFF0; //FIX! (Low 3 bits are returned error)
   const uint32_t SENSE_ADC_INIT_FAIL = 0x10060000; 
   const uint32_t SENSOR_PORT_RANGE_ERROR = 0x90010100; 
-  const uint32_t SENSOR_POWER_FAIL = 0x20010000; //(low 2 bits are which port)
-  const uint32_t SENSOR_POWER_FAIL_PERSISTENT = 0x20010100; //(low 2 bits are which port)
+  // const uint32_t SENSOR_POWER_FAIL = 0x20010000; //(low 2 bits are which port)
+  // const uint32_t SENSOR_POWER_FAIL_PERSISTENT = 0x20010100; //(low 2 bits are which port)
   const uint32_t I2C_OB_ISO_FAIL = 0x0F00; //FIX! 
   const uint32_t I2C_PORT_FAIL = 0x0FE0; //FIX! 
   // const float MAX_DISAGREE = 0.1; //If bus is different from expected by more than 10%, throw error
@@ -252,7 +252,8 @@ class I2CTalon: public Talon
     MCP3421 adcSense;
     PCA9536 ioSense;
     uint8_t expectedI2CVals[7] = {0x00, 0x22, 0x30, 0x41, 0x50, 0x58, 0x6B};
-    
+    const uint16_t maxTalonCurrent = 13104; //CSA reading for 2A output
+    const uint16_t maxPortCurrent = 3276; //CSA reading for 500mA output
     const float voltageDiv = 2; ///<Program voltage divider
     const float currentDiv = 0.243902439; ///<82mOhm, 50V/V Amp
     // int throwError(uint32_t error);
@@ -261,7 +262,9 @@ class I2CTalon: public Talon
 
     // bool hasReset(); 
 
-    bool testOvercurrent();
+    bool testOvercurrent(uint16_t baseCurrent);
+    uint16_t getBaseCurrent();
+    uint16_t getCurrent();
 
 
 
