@@ -967,7 +967,7 @@ String I2CTalon::getMetadata()
 	// uint64_t uuid = 0;
 	String uuid = "";
 
-	if(error != 0) throwError(EEPROM_I2C_ERROR | error);
+	if(error != 0) throwError(TALON_EEPROM_READ_FAIL | error);
 	else {
 		uint8_t val = 0;
 		Wire.requestFrom(0x58, 8); //EEPROM address
