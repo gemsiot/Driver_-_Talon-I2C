@@ -52,7 +52,7 @@ String I2CTalon::begin(time_t time, bool &criticalFault, bool &fault)
 		if(ioError != 0) { 
 			Serial.print("IO Init Error: "); //DEBUG!
 			Serial.println(ioError);
-			throwError(IO_INIT_ERROR | ioError); //Throw error on first init error, not again 
+			throwError(IO_INIT_FAIL | ioError); //Throw error on first init error, not again 
 			criticalFault = true; //If any IO expander fails, this is a critical error  
 			// break;
 		}

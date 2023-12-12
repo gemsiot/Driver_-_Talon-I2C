@@ -132,7 +132,7 @@ class I2CTalon: public Talon
   constexpr static  int DEAFULT_PORT = 3; ///<Use port 3 by default
   constexpr static  int DEFAULT_VERSION = 0x21; ///<Use hardware version v2.1 by default
   constexpr static  int MAX_NUM_ERRORS = 10; ///<Maximum number of errors to log before overwriting previous errors in buffer
-  const String FIRMWARE_VERSION = "1.4.1"; //FIX! Read from system??
+  const String FIRMWARE_VERSION = "1.4.2"; //FIX! Read from system??
   
   enum pinsAlpha 
   {
@@ -178,18 +178,18 @@ class I2CTalon: public Talon
   // const uint32_t POWER_FAULT_PERSISTENT = 0xFF70; //FIX! (low 2 bits are which port)
   // const uint32_t BUS_DISAGREE = 0xFF80; //FIX! (low 2 bits are which port)
   // const uint32_t BUS_OUTOFRANGE = 0xFF90; //FIX! (low 2 bits are which port, 3 = 5V rail)
-  const uint32_t IO_INIT_ERROR = 0xFFA0; //FIX! (Low 3 bits are returned error)
+  // const uint32_t IO_INIT_ERROR = 0xFFA0; //FIX! (Low 3 bits are returned error)
   // const uint32_t ADC_INIT_ERROR = 0xFFB0; //FIX! (Low 3 bits are returned error)
   // const uint32_t INPUT_BUF_ERROR = 0xFFC0; //FIX! (Low 2 bits are which port, 3rd bit is Dx vs ODx input)
   // const uint32_t COUNTER_INCREMENT_ERROR = 0xFFD0; //FIX! (Low 2 bits are which port)
   // const uint32_t COUNTER_CLEAR_ERROR = 0xFFE0; //FIX!
-  const uint32_t EEPROM_I2C_ERROR = 0xFFF0; //FIX! (Low 3 bits are returned error)
-  const uint32_t SENSE_ADC_INIT_FAIL = 0x10060000; 
-  const uint32_t SENSOR_PORT_RANGE_ERROR = 0x90010100; 
+  // const uint32_t EEPROM_I2C_ERROR = 0xFFF0; //FIX! (Low 3 bits are returned error)
+  // const uint32_t SENSE_ADC_INIT_FAIL = 0x10060000; 
+  // const uint32_t SENSOR_PORT_RANGE_ERROR = 0x90010100; 
   // const uint32_t SENSOR_POWER_FAIL = 0x20010000; //(low 2 bits are which port)
   // const uint32_t SENSOR_POWER_FAIL_PERSISTENT = 0x20010100; //(low 2 bits are which port)
-  const uint32_t I2C_OB_ISO_FAIL = 0x0F00; //FIX! 
-  const uint32_t I2C_PORT_FAIL = 0x0FE0; //FIX! 
+  const uint32_t I2C_OB_ISO_FAIL = 0x80090000; ///<Internal I2C isolation has failed
+  const uint32_t I2C_PORT_FAIL = 0x60020000; ///<I2C loopback failed on specified port
   // const float MAX_DISAGREE = 0.1; //If bus is different from expected by more than 10%, throw error
 
   
